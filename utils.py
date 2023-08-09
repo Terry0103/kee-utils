@@ -20,19 +20,24 @@ def import_dataset(path : str) -> pd.DataFrame:
     ... 2  0.56  0.40  0.48  0.5  0.49  0.37  0.46     1
     '''
     path = path
-    dataset = pd.read_csv(path, header = 0, comment = '@', sep = ', ', engine = 'python')
+    # dataset = pd.read_csv(path, header = 0, comment = '@', sep = ', ', engine = 'python')
+    dataset = pd.read_csv(path, header = None, comment = '@', engine = 'python')
+
 
     name = [str(x) for x in np.arange(dataset.shape[1] - 1)]
     name.append('Class')
     # dataset = dataset.rename(columns = name, inplace = False)
     dataset.columns = name
-    dataset['Class'].replace('negative', 0, inplace = True)
-    dataset['Class'].replace('positive', 1, inplace = True)
-    # for i in range(dataset.shape[0]):
-    #     if (dataset.iloc[i, -1] == ' negative') or (dataset.iloc[i, -1] == 'negative'):
-    #         dataset.iloc[i, -1] = 0
-    #     else:
-    #         dataset.iloc[i, -1] = 1
+    # dataset['Class'] = dataset['Class'].astype('string')
+    # dataset['Class'] = dataset['Class'].str.strip()
+    
+    # dataset['Class'].replace(['negative', ' negative', 'negative '], '0', inplace = True)
+    # dataset['Class'].replace(['positive', ' positive', 'positive '], '1', inplace = True)
+    for i in range(dataset.shape[0]):
+        if (dataset.iloc[i, -1] == ' negative') or (dataset.iloc[i, -1] == 'negative'):
+            dataset.iloc[i, -1] = 0
+        else:
+            dataset.iloc[i, -1] = 1
 
     dataset['Class'] = dataset['Class'].astype("category")
     del name

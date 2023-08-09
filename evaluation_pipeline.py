@@ -92,13 +92,13 @@ class Train_model():
         self.best_para :dict = None
             
 
-    def get_preprocessed_data(self, data: pd.DataFrame):
+    def get_preprocessed_data(self, data: pd.DataFrame = None):
         '''
         Given an imbalanced dataset and resampler, then return a processed balanced dataset.
         '''
-        data = data.reset_index(drop = True)
-
+        
         if self.resampler == None:
+            data = data.reset_index(drop = True)
             return data.iloc[:, 0:-1], data.iloc[:, -1]
         
         # If the resampler is a k-NN based algorithm, and if the number of minority class instances is less that default k(5)
@@ -112,10 +112,10 @@ class Train_model():
             self.resampler.set_params(**{'k_neighbors': min(data.Class.value_counts()[:]) - 1})
 
         b_X, b_Y = self.resampler.fit_resample(np.array(data.iloc[:, 0:-1]), np.array(data.iloc[:, -1]))
-        b_X = pd.DataFrame(b_X, columns = [str(x) for x in np.arange(b_X.shape[1])])
+        
+        b_X = pd.DataFrame(b_X, columns = [str(x) for x in range(b_X.shape[1])])
         b_Y = pd.Series(b_Y, name = 'Class')
-        # print(id(b_X.shape))
-
+        del data
         return b_X, b_Y
 
     def tune_para(self):
@@ -136,18 +136,24 @@ class Train_model():
 
         del grid_search, processed_data
 
-    def training_model(self, data : pd.DataFrame,):
+    def training_model(self, data : pd.DataFrame = None):
         if self.parameters_dict != None:
             model = self.classifier.set_params(**self.best_para)
         else:
             model = self.classifier
 
+        
         x, y = self.get_preprocessed_data(data)
+        # print(f'precessed features: {x.head}')
         fit_model = model.fit(x, y)
+        # print(f'training data shape: {data.shape}')
+        # print(f'processed data shape: {x.shape}')
+        # print(f'# of features in classifier: {fit_model.n_features_in_}')
+        # print('-'*100)
         # self.shape = pd.concat((self.shape, y.value_counts()), axis = 1)
         # x.columns = data.columns[0:-1]
         
-        del x, y
+        del x, y, model, data
         return fit_model
 
     def cross_validation(self):
@@ -181,43 +187,38 @@ class Train_model():
                 elif self.scaling == 'Std':
                     scaler = StandardScaler().fit(training)
 
-                training = pd.DataFrame(scaler.transform(training))
-                testing =  pd.DataFrame(scaler.transform(testing))
+                training = pd.DataFrame(scaler.transform(training), columns = variable_names[:-1])
+                testing =  pd.DataFrame(scaler.transform(testing), columns = variable_names[:-1])
                 training['Class'] = self.train_data.iloc[train_id, -1].reset_index(drop = True)
                 testing['Class'] = self.train_data.iloc[test_id, -1].reset_index(drop = True)
+                del scaler
             else:
                 training['Class'] = self.train_data.iloc[train_id, -1]
                 testing['Class'] = self.train_data.iloc[test_id, -1]
-
-            ################################################################################################
-            # TODO : General form for setting the testset
-            # General Hint: Not all of the module named testset as a same way!(Maybe RegEx)
-            # if test_set in dir(self.resampler):
-            #     self.resampler.set_params(parameters = {'test_set' : testing})
-            # if isinstance(self.resampler, RDBH):
-            #     self.resampler.set_params(parameters_dict = {'x_test' : testing.iloc[:, 0:-1], 'y_test' : testing.iloc[:, -1]})
-            # if isinstance(self.resampler, ClusIBasedOversampling):
-            #     self.resampler.set_params(parameters = {'test_set' : testing})
-            # if testing == None:
-                # print('None testing')
-
+            
             model = self.training_model(data = training)
+            
+            
+            # if 'best_score' in self.resampler.__dir__():
+            #     print(f'best score : {self.resampler.best_score}')
+            #     # self.resampler.set_params(**{'best_score' : 0})
+            # if 'saturate_count' in self.resampler.__dir__():
+            #     print(f'saturate_count : {self.resampler.saturate_count}')
+            #     # self.resampler.set_params(**{'saturate_count' : 0})
+            # if 'best_balanced_data' in self.resampler.__dir__():
+            #     self.resampler.set_params(**{'best_balanced_data' : None})
+
             testing.columns = training.columns
             pred = model.predict(testing.iloc[:, 0:-1])
             true = testing.iloc[:, -1]
-
-            # TODO : Calculate evaluation metrics by array instead of for loop
-            for metric in range(len(metrics_list)):
-                evl_outcome[fold, metric] = self.get_metrics_value(metrics_list[metric], true, pred)
-
-        # self.train_data : pd.DataFrame = None
-        # self.classifier : any = None
-        # self.parameters_dict : dict = None
-        # self.resampler = None
-
+            del model
+                
+            evl_outcome[fold, :] = list(self.get_metrics_value(true, pred).values())
+            del true, pred, train_id, test_id, training, testing 
+        print('-'*100)
         return evl_outcome
 
-    def get_metrics_value(self, metrics, true, pred):
+    def get_metrics_value(self, true, pred):
 
         metrics_dict = {
             'Accuracy' : accuracy_score(true, pred),
@@ -228,10 +229,7 @@ class Train_model():
             'G-mean' : geometric_mean_score(true, pred,),
             }
 
-        if metrics in metrics_dict.keys():
-            return metrics_dict[metrics]
-        else:
-            raise Exception('Metric could not be found!')
+        return metrics_dict
         
     @timer
     def evaluation(self):
