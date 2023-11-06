@@ -62,7 +62,7 @@ def timer(func):
         result = func(*args)
         gap = time.time() - start
         out = [time.asctime(), int(gap  // 60), gap %60]
-        print('Process has been compeleted! \nSys time : {0:s} Exe time : {1:3d} mins {2:.4f} s'.format(*out))
+        print('Process has been completed! \nSys time : {0:s} Exe time : {1:3d} mins {2:.4f} s'.format(*out))
         # logging.debug('Process has been compeleted! \n Exe time : {0:3d} mins {1:.4f} s'.format(*out))
         return result
     return wrapper
